@@ -188,6 +188,29 @@ style:AddSlider({
 		end,
 	});
 
+-- Font pickers, offering exactly the faces this build exposes. Guarded the same
+-- way as ThemeFrom: a library older than this demo would be a nil call.
+if type(big.SetFonts) == "function" and type(UILib.Fonts) == "table"
+	and #UILib.Fonts > 0 then
+	style:AddSection({ name = "Fonts" });
+	style:AddDropdown({
+			name = "Title font", key = "demoTitleFont",
+			options = UILib.Fonts, default = big.opts.titleFont,
+			callback = function(value)
+				big:SetFonts({ title = value }); -- window title and section headings
+			end,
+		});
+	style:AddDropdown({
+			name = "Text font", key = "demoTextFont",
+			options = UILib.Fonts, default = big.opts.textFont,
+			callback = function(value)
+				big:SetFonts({ text = value }); -- every other row
+			end,
+		});
+else
+	notify("MatchaUI is out of date - no font pickers.", "UI Demo", 6);
+end;
+
 -- Scroll tab: more rows than the cap allows, so the bar has to appear.
 local scroll = big:AddTab("Scroll");
 scroll:AddSection({ name = "Twenty rows" });
