@@ -42,7 +42,7 @@ local UILib do
 
 	local src;
 	if UI_PREFER_REMOTE then
-		src = fromWeb() or fromDisk(); 
+		src = fromWeb() or fromDisk(); -- the link wins; disk is the offline fallback
 	else
 		src = fromDisk() or fromWeb();
 	end;
@@ -50,10 +50,10 @@ local UILib do
 	if src and type(loadstring) == "function" then
 		local chunk = loadstring(src);
 		if chunk then
-			pcall(chunk); 
+			pcall(chunk); -- the library assigns itself to _G.MatchaUI
 		end;
 	end;
-	if type(getfenv) == "function" then 
+	if type(getfenv) == "function" then -- guarded: an unguarded getfenv kills the chunk
 		pcall(function()
 			UILib = rawget(getfenv(0), "MatchaUI");
 		end);
@@ -77,6 +77,30 @@ end;
 
 -- Everything the library can do, on one window.
 
+
+-- Plain rgb triples rather than Color3 values: ThemeFrom needs the channels,
+-- and Drawing offers no way to read them back off a Color3.
+local ACCENTS = {
+		purple = { 143, 123, 245 }, green = { 120, 210, 150 },
+		amber  = { 235, 180, 90 },  blue  = { 110, 170, 240 },
+	};
+
+-- The loader fetches the library at run time, so it can be older than this
+-- demo. ThemeFrom arrived after the first release; without it, recolour just
+-- the accent rather than erroring on a nil call.
+local hasThemeFrom = type(UILib.ThemeFrom) == "function";
+
+local function themeFor(c)
+	if hasThemeFrom then
+		return UILib.ThemeFrom(c[1], c[2], c[3]);
+	end;
+	return { accent = Color3.fromRGB(c[1], c[2], c[3]) };
+end;
+
+if not hasThemeFrom then
+	notify("MatchaUI is out of date - Accent will only recolour the accent.", "UI Demo", 6);
+end;
+
 local big = UILib.CreateWindow({
 		title = "Kitchen Sink",
 		x = 60, y = 120,
@@ -84,6 +108,9 @@ local big = UILib.CreateWindow({
 		maxHeight = 400, -- the Scroll tab below is taller than this on purpose
 		toggleKey = 35, -- END
 		config = "ui_demo.json",
+		-- Seeded from the same accent the dropdown below starts on, so the
+		-- panel does not shift the first time that dropdown is touched.
+		theme = themeFor(ACCENTS.purple),
 	});
 
 local home = big:AddTab("Home");
@@ -128,14 +155,11 @@ home:AddButton({
 local style = big:AddTab("Style");
 style:AddSection({ name = "Appearance" });
 
-local ACCENTS = { purple = Color3.fromRGB(143, 123, 245), green = Color3.fromRGB(120, 210, 150),
-	amber = Color3.fromRGB(235, 180, 90), blue = Color3.fromRGB(110, 170, 240) };
-
 style:AddDropdown({
 		name = "Accent", key = "demoAccent",
 		options = { "purple", "green", "amber", "blue" }, default = "purple",
 		callback = function(value)
-			big:SetTheme({ accent = ACCENTS[value] });
+			big:SetTheme(themeFor(ACCENTS[value])); -- retints the whole card
 		end,
 	});
 
@@ -190,6 +214,8 @@ home:AddToggle({
 			extra:SetVisible(on);
 		end,
 	});
+
+-- Loop and teardown
 
 local fails = 0; -- consecutive UI errors, so a broken panel cannot spam forever
 
